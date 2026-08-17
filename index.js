@@ -36,7 +36,7 @@ if (process.env.OPENROUTER_API_KEY) {
     nombre: "openrouter",
     url: "https://openrouter.ai/api/v1/chat/completions",
     key: process.env.OPENROUTER_API_KEY,
-    modelo: process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free",
+    modelo: process.env.OPENROUTER_MODEL || "nvidia/nemotron-3.5-lightning:free",
     timeout: 45000,
   });
 }
