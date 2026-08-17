@@ -27,15 +27,16 @@ const MAX_HISTORIAL = 16;
 
 // ------------------------------------------------------------------ cerebro
 
-async function pensar(historial, texto) {
+async function pensarCon(modelo, historial, texto, timeoutMs) {
   const r = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
     method: "POST",
+    signal: AbortSignal.timeout(timeoutMs),
     headers: {
       Authorization: `Bearer ${process.env.NVIDIA_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: process.env.NVIDIA_MODEL || "meta/llama-3.3-70b-instruct",
+      model: modelo,
       max_tokens: 400,
       temperature: 0.6,
       messages: [
@@ -48,6 +49,18 @@ async function pensar(historial, texto) {
   if (!r.ok) throw new Error(`nvidia ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const data = await r.json();
   return (data.choices?.[0]?.message?.content || "").trim();
+}
+
+async function pensar(historial, texto) {
+  // el 70B responde mejor pero en el free tier a veces se cuelga: si tarda,
+  // cae al 8B que contesta en segundos — el cliente nunca se queda esperando
+  const principal = process.env.NVIDIA_MODEL || "meta/llama-3.1-70b-instruct";
+  try {
+    return await pensarCon(principal, historial, texto, 45000);
+  } catch (e) {
+    console.error("modelo principal:", e.message);
+    return await pensarCon("meta/llama-3.1-8b-instruct", historial, texto, 30000);
+  }
 }
 
 // ------------------------------------------------------- estado por cliente

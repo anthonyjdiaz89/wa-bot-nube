@@ -14,10 +14,14 @@ necesita un proceso encendido 24/7 con websocket. Por eso el bot va en Render
 
 ## Encenderlo (una sola vez)
 
-1. **API key de NVIDIA (gratis):** build.nvidia.com → cuenta gratuita →
-   "Get API Key". Modelo por defecto: meta/llama-3.3-70b-instruct.
-2. **Render:** render.com → Sign in with GitHub → New → Web Service →
-   repo `wa-bot-nube` → plan **Free**. Variables de entorno:
+**Host preferido: el Coolify de Anthony** (el mismo de DigitalWorld) — app nueva
+apuntando al repo `wa-bot-nube`, deploy por Dockerfile. Alternativa sin servidor
+propio: Render Free (render.yaml incluido).
+
+1. **API key de NVIDIA:** ya existe — la misma de `D:\pd\digitalworld\.env`
+   (NVIDIA_API_KEY). Modelo por defecto: meta/llama-3.1-70b-instruct
+   (probado 6s con la persona completa; si se cuelga cae solo al 8B).
+2. **Crear la app en Coolify** (o Render) con estas variables de entorno:
    - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_BUCKET` (los mismos
      de `D:\pd\web\meta\.env`)
    - `NVIDIA_API_KEY` (paso 1)
