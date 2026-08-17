@@ -6,6 +6,7 @@ import makeWASocket, {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   DisconnectReason,
+  Browsers,
 } from "@whiskeysockets/baileys";
 import qrterm from "qrcode-terminal";
 import pino from "pino";
@@ -125,7 +126,7 @@ async function conectar() {
     auth: state,
     logger: pino({ level: "warn" }),
     printQRInTerminal: false,
-    browser: ["Persistencia Digital", "Chrome", "1.0"],
+    browser: Browsers.ubuntu("Chrome"), // el nombre personalizado rompe la vinculación por código (maña conocida de Baileys)
   });
 
   // vinculación por CÓDIGO (8 caracteres que se escriben a mano en el teléfono):
