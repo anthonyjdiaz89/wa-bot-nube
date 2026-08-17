@@ -27,16 +27,48 @@ const MAX_HISTORIAL = 16;
 
 // ------------------------------------------------------------------ cerebro
 
-async function pensarCon(modelo, historial, texto, timeoutMs) {
-  const r = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+// Cadena de cerebros (todas las APIs son OpenAI-compatibles): se intenta en
+// orden y si uno se cuelga o falla, sigue el próximo — el cliente nunca espera.
+// OpenRouter va primero si hay key (modelos :free); NVIDIA es la base probada.
+const CEREBROS = [];
+if (process.env.OPENROUTER_API_KEY) {
+  CEREBROS.push({
+    nombre: "openrouter",
+    url: "https://openrouter.ai/api/v1/chat/completions",
+    key: process.env.OPENROUTER_API_KEY,
+    modelo: process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free",
+    timeout: 45000,
+  });
+}
+if (process.env.NVIDIA_API_KEY) {
+  CEREBROS.push(
+    {
+      nombre: "nvidia-70b",
+      url: "https://integrate.api.nvidia.com/v1/chat/completions",
+      key: process.env.NVIDIA_API_KEY,
+      modelo: process.env.NVIDIA_MODEL || "meta/llama-3.1-70b-instruct",
+      timeout: 45000,
+    },
+    {
+      nombre: "nvidia-8b",
+      url: "https://integrate.api.nvidia.com/v1/chat/completions",
+      key: process.env.NVIDIA_API_KEY,
+      modelo: "meta/llama-3.1-8b-instruct",
+      timeout: 30000,
+    }
+  );
+}
+
+async function pensarCon(cerebro, historial, texto) {
+  const r = await fetch(cerebro.url, {
     method: "POST",
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: AbortSignal.timeout(cerebro.timeout),
     headers: {
-      Authorization: `Bearer ${process.env.NVIDIA_API_KEY}`,
+      Authorization: `Bearer ${cerebro.key}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: modelo,
+      model: cerebro.modelo,
       max_tokens: 400,
       temperature: 0.6,
       messages: [
@@ -46,21 +78,24 @@ async function pensarCon(modelo, historial, texto, timeoutMs) {
       ],
     }),
   });
-  if (!r.ok) throw new Error(`nvidia ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  if (!r.ok) throw new Error(`${cerebro.nombre} ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const data = await r.json();
-  return (data.choices?.[0]?.message?.content || "").trim();
+  const salida = (data.choices?.[0]?.message?.content || "").trim();
+  if (!salida) throw new Error(`${cerebro.nombre}: respuesta vacía`);
+  return salida;
 }
 
 async function pensar(historial, texto) {
-  // el 70B responde mejor pero en el free tier a veces se cuelga: si tarda,
-  // cae al 8B que contesta en segundos — el cliente nunca se queda esperando
-  const principal = process.env.NVIDIA_MODEL || "meta/llama-3.1-70b-instruct";
-  try {
-    return await pensarCon(principal, historial, texto, 45000);
-  } catch (e) {
-    console.error("modelo principal:", e.message);
-    return await pensarCon("meta/llama-3.1-8b-instruct", historial, texto, 30000);
+  let ultimo = null;
+  for (const cerebro of CEREBROS) {
+    try {
+      return await pensarCon(cerebro, historial, texto);
+    } catch (e) {
+      console.error(cerebro.nombre + ":", e.message);
+      ultimo = e;
+    }
   }
+  throw ultimo || new Error("sin cerebros configurados");
 }
 
 // ------------------------------------------------------- estado por cliente

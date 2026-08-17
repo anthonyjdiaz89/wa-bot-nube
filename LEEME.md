@@ -24,7 +24,9 @@ propio: Render Free (render.yaml incluido).
 2. **Crear la app en Coolify** (o Render) con estas variables de entorno:
    - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_BUCKET` (los mismos
      de `D:\pd\web\meta\.env`)
-   - `NVIDIA_API_KEY` (paso 1)
+   - `NVIDIA_API_KEY` (paso 1) y/o `OPENROUTER_API_KEY` (openrouter.ai/keys —
+     si está, se usa primero con meta-llama/llama-3.3-70b-instruct:free; el tier
+     gratis da ~50 respuestas/día, ~1000/día con $10 de saldo cargado una vez)
    - `SELF_URL` = la URL del servicio (https://wa-bot-persistencia.onrender.com)
 3. **Vincular el número:** al arrancar sin sesión, el bot publica el QR en
    Supabase (`wa-bot-nube/qr.txt`) y en los logs de Render. Claude lo renderiza
