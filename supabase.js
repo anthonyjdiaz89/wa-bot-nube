@@ -67,3 +67,15 @@ export async function respaldarAuth(dir) {
     subidos.set(nombre, mt);
   }
 }
+
+export async function limpiarAuthRemota() {
+  const nombres = await listar(PREFIJO);
+  if (!nombres.length) return;
+  const { url, key, bucket } = sb();
+  await fetch(`${url}/storage/v1/object/${bucket}`, {
+    method: "DELETE",
+    headers: { ...cab, "Content-Type": "application/json" },
+    body: JSON.stringify({ prefixes: nombres.map((n) => `${PREFIJO}/${n}`) }),
+  });
+  subidos.clear();
+}

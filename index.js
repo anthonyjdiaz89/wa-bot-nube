@@ -11,8 +11,9 @@ import makeWASocket, {
 import qrterm from "qrcode-terminal";
 import pino from "pino";
 import http from "node:http";
+import fs from "node:fs";
 import { PERSONA, NEGOCIO } from "./negocio.js";
-import { subir, bajar, restaurarAuth, respaldarAuth } from "./supabase.js";
+import { subir, bajar, restaurarAuth, respaldarAuth, limpiarAuthRemota } from "./supabase.js";
 
 const AUTH_DIR = "./auth";
 const ALERTA_JID = (process.env.ALERT_WA || "573207317444") + "@s.whatsapp.net";
@@ -168,7 +169,13 @@ async function conectar() {
       if (codigo !== DisconnectReason.loggedOut) {
         setTimeout(conectar, 3000);
       } else {
-        console.log("SESIÓN CERRADA: hay que volver a vincular (borrar auth y reiniciar)");
+        // sesión muerta (o credenciales a medias de un intento fallido):
+        // limpiar TODO y arrancar de cero — el bot se cura solo
+        console.log("SESIÓN CERRADA: limpiando credenciales y pidiendo vinculación nueva");
+        fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+        await limpiarAuthRemota().catch(() => {});
+        global.codigoPedido = false;
+        setTimeout(conectar, 2000);
       }
     }
   });
