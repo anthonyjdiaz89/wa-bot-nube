@@ -128,6 +128,23 @@ async function conectar() {
     browser: ["Persistencia Digital", "Chrome", "1.0"],
   });
 
+  // vinculación por CÓDIGO (8 caracteres que se escriben a mano en el teléfono):
+  // mucho más tolerante que el QR, que rota cada minuto y pierde la carrera
+  // contra el envío de la imagen. Se publica en supabase para leerlo desde afuera.
+  if (!sock.authState.creds.registered && process.env.PAIRING_NUMBER && !global.codigoPedido) {
+    global.codigoPedido = true;
+    setTimeout(async () => {
+      try {
+        const codigo = await sock.requestPairingCode(process.env.PAIRING_NUMBER);
+        console.log("CODIGO DE VINCULACION:", codigo);
+        await subir("wa-bot-nube/codigo.txt", codigo, "text/plain");
+      } catch (e) {
+        console.error("codigo de vinculacion:", e.message);
+        global.codigoPedido = false;
+      }
+    }, 4000);
+  }
+
   sock.ev.on("creds.update", async () => {
     await saveCreds();
     await respaldarAuth(AUTH_DIR);
