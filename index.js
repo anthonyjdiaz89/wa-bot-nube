@@ -156,6 +156,8 @@ async function conectar() {
       try {
         const codigo = await sock.requestPairingCode(process.env.PAIRING_NUMBER);
         console.log("CODIGO DE VINCULACION:", codigo);
+        global.ultimoCodigo = codigo;
+        global.codigoDesde = Date.now();
         await subir("wa-bot-nube/codigo.txt", codigo, "text/plain");
       } catch (e) {
         console.error("codigo de vinculacion:", e.message);
@@ -289,6 +291,20 @@ async function atender(m) {
 const PORT = process.env.PORT || 3000;
 http
   .createServer((req, res) => {
+    if (req.url && req.url.startsWith("/codigo")) {
+      const c = global.ultimoCodigo || "generando...";
+      const seg = global.codigoDesde ? Math.round((Date.now() - global.codigoDesde) / 1000) : 0;
+      const listo = !!sock?.user && global.sesionLista;
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(`<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<meta http-equiv=refresh content=5>
+<body style="background:#06060c;color:#f4f6ff;font-family:system-ui;text-align:center;padding:40px 16px">
+<div style="font-size:15px;opacity:.7">Código para vincular el bot</div>
+<div style="font-size:52px;font-weight:800;letter-spacing:6px;margin:22px 0;color:#4deeea">${listo ? "VINCULADO" : c}</div>
+<div style="font-size:14px;opacity:.6">${listo ? "el bot ya está conectado" : "generado hace " + seg + " s · esta página se actualiza sola"}</div>
+</body>`);
+      return;
+    }
     res.writeHead(200, { "Content-Type": "text/plain" });
     res.end(sock?.user ? `ok ${sock.user.id}` : "arrancando");
   })
