@@ -68,14 +68,26 @@ export async function respaldarAuth(dir) {
   }
 }
 
+// Borra TODA la sesión remota. Itera porque listar() trae de a 500 y la carpeta
+// puede tener más: si queda un solo archivo viejo, el bot revive la sesión muerta
+// y entra en bucle de 401 (incidente 2026-08-18).
 export async function limpiarAuthRemota() {
-  const nombres = await listar(PREFIJO);
-  if (!nombres.length) return;
-  const { url, key, bucket } = sb();
-  await fetch(`${url}/storage/v1/object/${bucket}`, {
-    method: "DELETE",
-    headers: { ...cab, "Content-Type": "application/json" },
-    body: JSON.stringify({ prefixes: nombres.map((n) => `${PREFIJO}/${n}`) }),
-  });
+  let total = 0;
+  for (let vuelta = 0; vuelta < 20; vuelta++) {
+    const nombres = await listar(PREFIJO);
+    if (!nombres.length) break;
+    const r = await fetch(`${URL}/storage/v1/object/${BUCKET}`, {
+      method: "DELETE",
+      headers: { ...cab, "Content-Type": "application/json" },
+      body: JSON.stringify({ prefixes: nombres.map((n) => `${PREFIJO}/${n}`) }),
+    });
+    if (!r.ok) {
+      console.error("limpiarAuthRemota fallo:", r.status, (await r.text()).slice(0, 200));
+      break;
+    }
+    total += nombres.length;
+  }
   subidos.clear();
+  console.log(`auth remota borrada: ${total} archivos`);
+  return total;
 }

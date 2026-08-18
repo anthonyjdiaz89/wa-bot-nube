@@ -182,9 +182,17 @@ async function conectar() {
         // limpiar TODO y arrancar de cero — el bot se cura solo
         console.log("SESIÓN CERRADA: limpiando credenciales y pidiendo vinculación nueva");
         fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-        await limpiarAuthRemota().catch(() => {});
+        // si la limpieza remota falla NO se puede reconectar: restauraría las
+        // credenciales muertas y quedaría en bucle de 401 quemando la API
+        try {
+          await limpiarAuthRemota();
+        } catch (e) {
+          console.error("no se pudo limpiar la auth remota:", e.message, "- esperando 60s");
+          setTimeout(conectar, 60000);
+          return;
+        }
         global.codigoPedido = false;
-        setTimeout(conectar, 2000);
+        setTimeout(conectar, 5000);
       }
     }
   });
