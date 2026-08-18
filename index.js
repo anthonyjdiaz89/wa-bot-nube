@@ -31,8 +31,20 @@ const MAX_HISTORIAL = 16;
 
 // Cadena de cerebros (todas las APIs son OpenAI-compatibles): se intenta en
 // orden y si uno se cuelga o falla, sigue el próximo — el cliente nunca espera.
-// OpenRouter va primero si hay key (modelos :free); NVIDIA es la base probada.
+// PRIMARIO: NVIDIA llama-3.1-70b — NO razonador, jamás filtra pensamiento al
+// cliente (el lightning de OpenRouter razonaba en voz alta aunque se le
+// pidiera que no: incidente 2026-08-18). OpenRouter queda de respaldo con el
+// filtro anti-<think> como segunda barrera.
 const CEREBROS = [];
+if (process.env.NVIDIA_API_KEY) {
+  CEREBROS.push({
+    nombre: "nvidia-70b",
+    url: "https://integrate.api.nvidia.com/v1/chat/completions",
+    key: process.env.NVIDIA_API_KEY,
+    modelo: process.env.NVIDIA_MODEL || "meta/llama-3.1-70b-instruct",
+    timeout: 45000,
+  });
+}
 if (process.env.OPENROUTER_API_KEY) {
   CEREBROS.push({
     nombre: "openrouter",
@@ -44,13 +56,6 @@ if (process.env.OPENROUTER_API_KEY) {
 }
 if (process.env.NVIDIA_API_KEY) {
   CEREBROS.push(
-    {
-      nombre: "nvidia-70b",
-      url: "https://integrate.api.nvidia.com/v1/chat/completions",
-      key: process.env.NVIDIA_API_KEY,
-      modelo: process.env.NVIDIA_MODEL || "meta/llama-3.1-70b-instruct",
-      timeout: 45000,
-    },
     {
       nombre: "nvidia-8b",
       url: "https://integrate.api.nvidia.com/v1/chat/completions",
