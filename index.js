@@ -73,6 +73,7 @@ async function pensarCon(cerebro, historial, texto) {
       model: cerebro.modelo,
       max_tokens: 400,
       temperature: 0.6,
+      ...(cerebro.url.includes("openrouter") ? { reasoning: { enabled: false } } : {}),
       messages: [
         { role: "system", content: PERSONA + "\n\n---\n" + NEGOCIO },
         ...historial,
@@ -82,7 +83,10 @@ async function pensarCon(cerebro, historial, texto) {
   });
   if (!r.ok) throw new Error(`${cerebro.nombre} ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const data = await r.json();
-  const salida = (data.choices?.[0]?.message?.content || "").trim();
+  let salida = (data.choices?.[0]?.message?.content || "").trim();
+  // los modelos razonadores a veces filtran su analisis: quitarlo siempre
+  salida = salida.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  if (salida.includes("</think>")) salida = salida.split("</think>").pop().trim();
   if (!salida) throw new Error(`${cerebro.nombre}: respuesta vacía`);
   return salida;
 }
