@@ -128,7 +128,15 @@ let sock = null;
 async function conectar() {
   const restaurados = await restaurarAuth(AUTH_DIR);
   console.log(`auth restaurada de supabase: ${restaurados} archivos`);
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+  let { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+  // sesión a medias (creds sueltas sin registrar): no sirve y rompe el pairing
+  if (!state.creds?.registered && restaurados > 0) {
+    console.log("credenciales sin registrar: arrancando de cero");
+    fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+    await limpiarAuthRemota().catch((e) => console.error("limpieza:", e.message));
+    global.sesionLista = false;
+    ({ state, saveCreds } = await useMultiFileAuthState(AUTH_DIR));
+  }
   const { version } = await fetchLatestBaileysVersion();
 
   sock = makeWASocket({
@@ -158,7 +166,10 @@ async function conectar() {
 
   sock.ev.on("creds.update", async () => {
     await saveCreds();
-    await respaldarAuth(AUTH_DIR);
+    // Solo se respalda cuando la sesión YA abrió: si se suben credenciales a
+    // medias de un pairing fallido, envenenan el siguiente arranque (408/401
+    // en bucle). Incidente 2026-08-18.
+    if (global.sesionLista) await respaldarAuth(AUTH_DIR);
   });
 
   sock.ev.on("connection.update", async (u) => {
@@ -170,12 +181,14 @@ async function conectar() {
     }
     if (connection === "open") {
       console.log("conectado a WhatsApp");
+      global.sesionLista = true;
       await respaldarAuth(AUTH_DIR);
     }
     if (connection === "close") {
       const codigo = lastDisconnect?.error?.output?.statusCode;
       console.log("conexión cerrada, código", codigo);
       if (codigo !== DisconnectReason.loggedOut) {
+        if (!global.sesionLista) global.codigoPedido = false; // pairing fallido: pedir código nuevo
         setTimeout(conectar, 3000);
       } else {
         // sesión muerta (o credenciales a medias de un intento fallido):
